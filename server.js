@@ -3,42 +3,14 @@ const app = express();
 const cors = require("cors");
 const dotenv = require("dotenv");
 dotenv.config();
+const jwt = require('jsonwebtoken')
+const passport = require('passport')
 const userService = require("./user-service.js");
-const jwt = require('jsonwebtoken');
-const passport = require("passport");
-const passportJWT = require("passport-jwt");
 
 const HTTP_PORT = process.env.PORT || 8080;
 
-
-
-let ExtractJwt = passportJWT.ExtractJwt;
-let JwtStrategy = passportJWT.Strategy;
-
-
-let jwtOptions = {};
-jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderWithScheme('jwt');
-
-jwtOptions.secretOrKey = process.env.JWT_SECRET;
-
-let strategy = new JwtStrategy(jwtOptions, function (jwt_payload, next) {
-  console.log('payload received', jwt_payload);
-
-  if (jwt_payload) {
-    next(null, {
-      _id: jwt_payload._id,
-      userName: jwt_payload.userName,
-    });
-  } else {
-    next(null, false);
-  }
-});
-
-passport.use(strategy);
-
 app.use(express.json());
 app.use(cors());
-app.use(passport.initialize());
 
 app.post("/api/user/register", (req, res) => {
     userService.registerUser(req.body)
@@ -52,18 +24,21 @@ app.post("/api/user/register", (req, res) => {
 app.post("/api/user/login", (req, res) => {
     userService.checkUser(req.body)
     .then((user) => {
+
         let payload = {
-            _id: user._id,
+            _id: user.id,
             userName: user.userName
         };
-        let token = jwt.sign(payload, jwtOptions.secretOrKey);
-        res.json({ message: 'login successful', token: token });
+
+        let token = jwt.sign(payload, process.env.JWT_SECRET)
+
+        res.json({  "token": token, "message": "login successful"});
     }).catch(msg => {
         res.status(422).json({ "message": msg });
     });
 });
 
-app.get("/api/user/favourites", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.get("/api/user/favourites", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.getFavourites(req.user._id)
     .then(data => {
         res.json(data);
@@ -73,7 +48,7 @@ app.get("/api/user/favourites", passport.authenticate('jwt', { session: false })
 
 });
 
-app.put("/api/user/favourites/:id", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.put("/api/user/favourites/:id", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.addFavourite(req.user._id, req.params.id)
     .then(data => {
         res.json(data)
@@ -82,7 +57,7 @@ app.put("/api/user/favourites/:id", passport.authenticate('jwt', { session: fals
     })
 });
 
-app.delete("/api/user/favourites/:id", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.delete("/api/user/favourites/:id", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.removeFavourite(req.user._id, req.params.id)
     .then(data => {
         res.json(data)
@@ -91,7 +66,7 @@ app.delete("/api/user/favourites/:id", passport.authenticate('jwt', { session: f
     })
 });
 
-app.get("/api/user/history", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.get("/api/user/history", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.getHistory(req.user._id)
     .then(data => {
         res.json(data);
@@ -101,7 +76,7 @@ app.get("/api/user/history", passport.authenticate('jwt', { session: false }), (
 
 });
 
-app.put("/api/user/history/:id", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.put("/api/user/history/:id", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.addHistory(req.user._id, req.params.id)
     .then(data => {
         res.json(data)
@@ -110,7 +85,7 @@ app.put("/api/user/history/:id", passport.authenticate('jwt', { session: false }
     })
 });
 
-app.delete("/api/user/history/:id", passport.authenticate('jwt', { session: false }), (req, res) => {
+app.delete("/api/user/history/:id", passport.Authenticator('jwt', { session: false }), (req, res) => {
     userService.removeHistory(req.user._id, req.params.id)
     .then(data => {
         res.json(data)
